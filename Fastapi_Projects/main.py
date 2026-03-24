@@ -15,8 +15,7 @@ app = FastAPI()
 def create_user(user: User, db: Session = Depends(get_db)):
     # Check if username already exists
     existing = db.query(db_models.UserDB).filter(
-        db_models.UserDB.username == user.username
-    ).first()
+        db_models.UserDB.username == user.username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
 
@@ -31,11 +30,6 @@ def create_user(user: User, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_user)
     return {"message": "User created", "user": db_user}
-
-@app.get("/users")
-def get_users(db: Session = Depends(get_db)):
-    users = db.query(db_models.UserDB).all()
-    return {"users": users, "total": len(users)}
 
 @app.get("/users/{user_id}")
 def get_user(user_id: int, db: Session = Depends(get_db)):
@@ -74,3 +68,13 @@ def get_item(item_id: int, db: Session = Depends(get_db)):
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     return item
+
+@app.get("/users")
+def get_bool_users(is_active: bool = None, db: Session = Depends(get_db)):
+    query = db.query(db_models.UserDB)
+    
+    if is_active is not None:
+        query = query.filter(db_models.UserDB.is_active == is_active)
+    
+    users = query.all()
+    return {"users": users, "total": len(users)}  
