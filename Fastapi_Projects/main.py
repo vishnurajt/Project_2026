@@ -69,6 +69,30 @@ def get_item(item_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Item not found")
     return item
 
+@app.put("/items/{item_id}")
+def update_item(item_id: int, item_data: ItemUpdate, db : Session = Depends(get_db)):
+    item = db.query(db_models.ItemDB).filter(db_models.ItemDB.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    update_data = item_data.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(item, field, value)
+    db.commit()
+    db.refresh(item)
+    return {"message": "Item updated", "item": item}
+
+@app.delete("/items/{item_id}")
+def delete_item(item_id: int, db: Session = Depends(get_db)):
+    item = db.query(db_models.ItemDB).filter(
+        db_models.ItemDB.id == item_id
+    ).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(item)
+    db.commit()
+    return {"message": f"Item {item_id} deleted successfully"}
+
+
 @app.get("/users")
 def get_bool_users(is_active: bool = None, db: Session = Depends(get_db)):
     query = db.query(db_models.UserDB)
@@ -105,25 +129,5 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     return {"message": f"User {user_id} deleted successfully"}
 
 
-@app.put("/items/{item_id}")
-def update_item(item_id: int, item_data: ItemUpdate, db : Session = Depends(get_db)):
-    item = db.query(db_models.ItemDB).filter(db_models.ItemDB.id == item_id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
-    update_data = item_data.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(item, field, value)
-    db.commit()
-    db.refresh(item)
-    return {"message": "Item updated", "item": item}
 
-@app.delete("/items/{item_id}")
-def delete_item(item_id: int, db: Session = Depends(get_db)):
-    item = db.query(db_models.ItemDB).filter(
-        db_models.ItemDB.id == item_id
-    ).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="User not found")
-    db.delete(item)
-    db.commit()
-    return {"message": f"Item {item_id} deleted successfully"}
+
