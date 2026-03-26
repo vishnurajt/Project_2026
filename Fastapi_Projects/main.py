@@ -9,7 +9,6 @@ db_models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# ── USERS ──
 
 @app.post("/users")
 def create_user(user: User, db: Session = Depends(get_db)):
@@ -40,7 +39,41 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-# ── ITEMS ──
+@app.get("/users")
+def get_bool_users(is_active: bool = None, db: Session = Depends(get_db)):
+    query = db.query(db_models.UserDB)
+    
+    if is_active is not None:
+        query = query.filter(db_models.UserDB.is_active == is_active)
+    
+    users = query.all()
+    return {"users": users, "total": len(users)}  
+
+
+@app.put("/users/{user_id}")
+def update_user(user_id: int, user_data: UserUpdate, db : Session = Depends(get_db)):
+    user = db.query(db_models.UserDB).filter(db_models.UserDB.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    update_data = user_data.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(user, field, value)
+    db.commit()
+    db.refresh(user)
+    return {"message": "User updated", "user": user}
+
+
+@app.delete("/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(db_models.UserDB).filter(
+        db_models.UserDB.id == user_id
+    ).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(user)
+    db.commit()
+    return {"message": f"User {user_id} deleted successfully"}
+
 
 @app.post("/items")
 def create_item(item: Item, db: Session = Depends(get_db)):
@@ -91,43 +124,4 @@ def delete_item(item_id: int, db: Session = Depends(get_db)):
     db.delete(item)
     db.commit()
     return {"message": f"Item {item_id} deleted successfully"}
-
-
-@app.get("/users")
-def get_bool_users(is_active: bool = None, db: Session = Depends(get_db)):
-    query = db.query(db_models.UserDB)
-    
-    if is_active is not None:
-        query = query.filter(db_models.UserDB.is_active == is_active)
-    
-    users = query.all()
-    return {"users": users, "total": len(users)}  
-
-
-@app.put("/users/{user_id}")
-def update_user(user_id: int, user_data: UserUpdate, db : Session = Depends(get_db)):
-    user = db.query(db_models.UserDB).filter(db_models.UserDB.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    update_data = user_data.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(user, field, value)
-    db.commit()
-    db.refresh(user)
-    return {"message": "User updated", "user": user}
-
-
-@app.delete("/users/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(db_models.UserDB).filter(
-        db_models.UserDB.id == user_id
-    ).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    db.delete(user)
-    db.commit()
-    return {"message": f"User {user_id} deleted successfully"}
-
-
-
 
