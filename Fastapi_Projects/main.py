@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import engine, get_db
 import db_models
-from models import User, Item
+from models import User, Item, UserUpdate
 
 # This creates the actual tables in the database on startup
 db_models.Base.metadata.create_all(bind=engine)
@@ -78,3 +78,28 @@ def get_bool_users(is_active: bool = None, db: Session = Depends(get_db)):
     
     users = query.all()
     return {"users": users, "total": len(users)}  
+
+
+@app.put("/users/{user_id}")
+def update_user(user_id: int, user_data: UserUpdate, db : Session = Depends(get_db)):
+    user = db.query(db_models.UserDB).filter(db_models.UserDB.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    update_data = user_data.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(user, field, value)
+    db.commit()
+    db.refresh(user)
+    return {"message": "User updated", "user": user}
+
+
+@app.delete("/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(db_models.UserDB).filter(
+        db_models.UserDB.id == user_id
+    ).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(user)
+    db.commit()
+    return {"message": f"User {user_id} deleted successfully"}
