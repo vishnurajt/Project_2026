@@ -103,3 +103,13 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     db.delete(user)
     db.commit()
     return {"message": f"User {user_id} deleted successfully"}
+
+
+@app.get("/items/{item_id}")
+def get_item(item_id: int, db: Session = Depends(get_db)):
+    item = db.query(db_models.ItemDB).filter(
+        db_models.ItemDB.id == item_id
+    ).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return item
