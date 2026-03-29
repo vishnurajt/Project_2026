@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import engine, get_db
 import db_models
-from models import User, Item, UserUpdate
+from models import ItemUpdate, User, Item, UserUpdate
 
 # This creates the actual tables in the database on startup
 db_models.Base.metadata.create_all(bind=engine)
@@ -106,10 +106,13 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/items/{item_id}")
-def get_item(item_id: int, db: Session = Depends(get_db)):
-    item = db.query(db_models.ItemDB).filter(
-        db_models.ItemDB.id == item_id
-    ).first()
+def update_item(item_id: int, item_data: ItemUpdate, db : Session = Depends(get_db)):
+    item = db.query(db_models.ItemDB).filter(db_models.ItemDB.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
-    return item
+    update_data = item_data.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(item, field, value)
+    db.commit()
+    db.refresh(item)
+    return {"message": "Item updated", "item": item}

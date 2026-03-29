@@ -19,3 +19,10 @@ class UserUpdate(BaseModel):
     age : Optional[str] = None
     is_active : Optional[bool] = None
     bio: Optional[str] = None
+
+
+class ItemUpdate(BaseModel):
+    name: Optional[str] = None
+    price: Optional[float] = None
+    in_stock: Optional[bool] = None
+    description: Optional[str] = None
