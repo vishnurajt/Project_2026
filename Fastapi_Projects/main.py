@@ -105,7 +105,7 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     return {"message": f"User {user_id} deleted successfully"}
 
 
-@app.get("/items/{item_id}")
+@app.put("/items/{item_id}")
 def update_item(item_id: int, item_data: ItemUpdate, db : Session = Depends(get_db)):
     item = db.query(db_models.ItemDB).filter(db_models.ItemDB.id == item_id).first()
     if not item:
