@@ -116,3 +116,14 @@ def update_item(item_id: int, item_data: ItemUpdate, db : Session = Depends(get_
     db.commit()
     db.refresh(item)
     return {"message": "Item updated", "item": item}
+
+@app.delete("/items/{item_id}")
+def delete_item(item_id: int, db: Session = Depends(get_db)):
+    item = db.query(db_models.UserDB).filter(
+        db_models.UserDB.id == item_id
+    ).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(item)
+    db.commit()
+    return {"message": f"User {item_id} deleted successfully"}
