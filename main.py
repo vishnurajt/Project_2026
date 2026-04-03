@@ -6,6 +6,10 @@ from sqlalchemy.exc import IntegrityError
 from database import engine, get_db
 import db_models
 from models import ItemUpdate, User, Item, UserUpdate, UserResponse, UsersListResponse
+from auth import hash_password, verify_password, create_access_token, get_current_user
+from models import Token
+from fastapi.security import OAuth2PasswordRequestForm
+
 
 # This creates the actual tables in the database on startup
 db_models.Base.metadata.create_all(bind=engine)
@@ -21,6 +25,14 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "details": exc.errors()
         }
     )
+@app.exception_handler(HTTPException) 
+async def http_exception_handler(request, exc): 
+    return JSONResponse( 
+        status_code=exc.status_code, 
+        content={
+                "status": exc.status_code, 
+                "error": exc.detail } )
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
@@ -30,6 +42,63 @@ async def global_exception_handler(request: Request, exc: Exception):
             "message": "Something went wrong. Please try again."
         }
     )
+
+@app.post("/register", response_model=UserResponse, status_code=201)
+def register(user: User, db: Session = Depends(get_db)):
+
+    # Check duplicates
+    if db.query(db_models.UserDB).filter(
+        db_models.UserDB.username == user.username
+    ).first():
+        raise HTTPException(status_code=400, detail="Username already taken")
+
+    if db.query(db_models.UserDB).filter(
+        db_models.UserDB.email == user.email
+    ).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    # Hash the password before storing
+    db_user = db_models.UserDB(
+        username=user.username,
+        email=user.email,
+        age=user.age,
+        password=hash_password(user.password),  # NEVER store plain text
+        is_active=user.is_active,
+        bio=user.bio
+    )
+    try:
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Registration failed")
+
+    return db_user
+
+
+@app.post("/login", response_model=Token)
+def login(form_data:OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(db_models.UserDB).filter(
+        db_models.UserDB.username == form_data.username
+    ).first()
+    if not user or not verify_password(form_data.password, user.password):
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password"
+        )
+
+    token = create_access_token(data={"sub": user.username})
+    return {
+        "access_token": token, 
+            "token_type": "bearer"
+            }
+
+
+
+@app.get("/me", response_model=UserResponse)
+def get_me(current_user=Depends(get_current_user)):
+    return current_user
 
 @app.post("/users", response_model=UserResponse, status_code=201)
 def create_user(user: User, db: Session = Depends(get_db)):
@@ -47,7 +116,7 @@ def create_user(user: User, db: Session = Depends(get_db)):
         username=user.username,
         email=user.email,
         age=user.age,
-        password=user.password,
+        password=hash_password(user.password),
         is_active=user.is_active,
         bio=user.bio
     )
@@ -70,14 +139,15 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     return user
 
 @app.get("/users", response_model=UsersListResponse)
-def get_bool_users(is_active: bool = None, db: Session = Depends(get_db)):
+def get_bool_users(is_active: bool = None, db: Session = Depends(get_db),current_user=Depends(get_current_user)):
     query = db.query(db_models.UserDB)
     
     if is_active is not None:
         query = query.filter(db_models.UserDB.is_active == is_active)
     
     users = query.all()
-    return {"users": users, "total": len(users)}  
+    return {"users": users,
+     "total": len(users)}  
 
 
 @app.put("/users/{user_id}",response_model=UserResponse)
@@ -86,11 +156,14 @@ def update_user(user_id: int, user_data: UserUpdate, db : Session = Depends(get_
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     update_data = user_data.dict(exclude_unset=True)
-    existing_email = db.query(db_models.UserDB).filter(
-    db_models.UserDB.email == user_data.email,  # user_data = the request
-    db_models.UserDB.id != user_id).first()
-    if existing_email:
-        raise HTTPException(status_code=400, detail="Email already exists")
+    if "email" in update_data:
+        existing_email = db.query(db_models.UserDB).filter(
+            db_models.UserDB.email == update_data["email"],
+            db_models.UserDB.id != user_id
+        ).first()
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email already exists")
+    
     for field, value in update_data.items():
         setattr(user, field, value)
     db.commit()
