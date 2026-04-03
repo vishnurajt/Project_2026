@@ -32,6 +32,7 @@ Built as part of a structured 8-week backend engineering comeback plan.
 ---
 
 ## Project Structure
+```text
 Fastapi_Projects/
 ├── main.py          # All endpoints
 ├── models.py        # Pydantic models (input/output/response)
@@ -40,7 +41,7 @@ Fastapi_Projects/
 ├── auth.py          # JWT logic and get_current_user dependency
 ├── requirements.txt
 └── .gitignore
-
+```
 
 ---
 
