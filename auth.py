@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from database import get_db
 import db_models
-import hashlib
+
 
 SECRET_KEY = "your-secret-key-make-this-long-and-random"
 ALGORITHM = "HS256"
@@ -24,7 +24,6 @@ def hash_password(password: str) -> str:
     
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    print("verify",pwd_context.verify(plain_password, hashed_password))
     return pwd_context.verify(plain_password, hashed_password)
   
 
@@ -41,8 +40,9 @@ def get_current_user(
     db: Session = Depends(get_db)
 ):
     credentials_exception = HTTPException(
-        status_code=401,
-        detail="Could not validate credentials"
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+          headers={"WWW-Authenticate": "Bearer"},
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])

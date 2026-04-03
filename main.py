@@ -5,9 +5,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from database import engine, get_db
 import db_models
-from models import ItemUpdate, User, Item, UserUpdate, UserResponse, UsersListResponse
+from models import ItemUpdate, User, Item, UserUpdate, UserResponse, UsersListResponse, Token
 from auth import hash_password, verify_password, create_access_token, get_current_user
-from models import Token
 from fastapi.security import OAuth2PasswordRequestForm
 
 
@@ -43,6 +42,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         }
     )
 
+# --- AUTH ROUTES ---
 @app.post("/register", response_model=UserResponse, status_code=201)
 def register(user: User, db: Session = Depends(get_db)):
 
@@ -100,6 +100,9 @@ def login(form_data:OAuth2PasswordRequestForm = Depends(), db: Session = Depends
 def get_me(current_user=Depends(get_current_user)):
     return current_user
 
+
+
+# --- USER ROUTES ---
 @app.post("/users", response_model=UserResponse, status_code=201)
 def create_user(user: User, db: Session = Depends(get_db)):
     # Check if username already exists
@@ -129,15 +132,6 @@ def create_user(user: User, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="User with this email or username already exists")
     return db_user
 
-@app.get("/users/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(db_models.UserDB).filter(
-        db_models.UserDB.id == user_id
-    ).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
-
 @app.get("/users", response_model=UsersListResponse)
 def get_bool_users(is_active: bool = None, db: Session = Depends(get_db),current_user=Depends(get_current_user)):
     query = db.query(db_models.UserDB)
@@ -148,6 +142,17 @@ def get_bool_users(is_active: bool = None, db: Session = Depends(get_db),current
     users = query.all()
     return {"users": users,
      "total": len(users)}  
+
+@app.get("/users/{user_id}", response_model=UserResponse)
+def get_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(db_models.UserDB).filter(
+        db_models.UserDB.id == user_id
+    ).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
 
 
 @app.put("/users/{user_id}",response_model=UserResponse)
@@ -168,7 +173,7 @@ def update_user(user_id: int, user_data: UserUpdate, db : Session = Depends(get_
         setattr(user, field, value)
     db.commit()
     db.refresh(user)
-    return {"message": "User updated", "user": user}
+    return user
 
 
 @app.delete("/users/{user_id}")
@@ -182,7 +187,7 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": f"User {user_id} deleted successfully"}
 
-
+# --- ITEM ROUTES ---
 @app.post("/items")
 def create_item(item: Item, db: Session = Depends(get_db)):
     db_item = db_models.ItemDB(
