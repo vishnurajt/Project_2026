@@ -5,6 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine
 import db_models
 from routers import auth_router, users, items
+from tasks import log_request_to_file
+from starlette.background import BackgroundTask
+
 
 # Create tables on startup
 db_models.Base.metadata.create_all(bind=engine)
@@ -28,6 +31,22 @@ async def log_requests(request: Request, call_next):
     print(f"response status: {response.status_code}")
     return response
 
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    print(f"incoming request: {request.method} {request.url}")
+    response = await call_next(request)
+    print(f"response status: {response.status_code}")
+    
+    # Log to file in background
+    response.background = BackgroundTask(
+        log_request_to_file,
+        request.method,
+        str(request.url),
+        response.status_code
+    )
+    
+    return response
 # --- EXCEPTION HANDLERS ---
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

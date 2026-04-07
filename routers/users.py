@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException,BackgroundTasks
 from sqlalchemy.orm import Session
 from database import get_db
 import db_models
+import time
 from models import  UserResponse, UserUpdate, UsersListResponse
 from auth import hash_password, get_current_user
 from models import User, UserResponse, UserUpdate, UsersListResponse
 from sqlalchemy.exc import IntegrityError
+from tasks import send_deletion_notification
 
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -81,12 +83,16 @@ def update_user(user_id: int, user_data: UserUpdate, db : Session = Depends(get_
 
 
 @router.delete("/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(user_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user = db.query(db_models.UserDB).filter(
         db_models.UserDB.id == user_id
     ).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    email = user.email
+    username = user.username
     db.delete(user)
     db.commit()
+    background_tasks.add_task(send_deletion_notification, email, username)
+    time.sleep(3)
     return {"message": f"User {user_id} deleted successfully"}

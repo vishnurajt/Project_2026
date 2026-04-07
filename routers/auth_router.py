@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from database import get_db
+from tasks import send_welcome_email
 import db_models
 from models import User, UserResponse, Token
 from auth import hash_password, verify_password, create_access_token, get_current_user
@@ -10,7 +11,7 @@ from auth import hash_password, verify_password, create_access_token, get_curren
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @router.post("/register", response_model=UserResponse, status_code=201)
-def register(user: User, db: Session = Depends(get_db)):
+def register(user: User, background_tasks: BackgroundTasks ,db: Session = Depends(get_db)):
     if db.query(db_models.UserDB).filter(
         db_models.UserDB.username == user.username
     ).first():
@@ -34,6 +35,7 @@ def register(user: User, db: Session = Depends(get_db)):
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Registration failed")
+    background_tasks.add_task(send_welcome_email, user.email, user.username)
     return db_user
 
 @router.post("/login", response_model=Token)
