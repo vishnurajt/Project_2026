@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 
 class Item(BaseModel):
@@ -30,6 +30,7 @@ class ItemUpdate(BaseModel):
 
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     username: str
     email: str
@@ -37,14 +38,13 @@ class UserResponse(BaseModel):
     is_active: bool
     bio: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+
 
 class UsersListResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     users: List[UserResponse]
     total: int
-    class Config:
-        from_attributes = True
+    
 
 class Token(BaseModel):
     access_token: str
