@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: fastapi-learning
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 30
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fastapi-learning-db
+          property: connectionString
+
+databases:
+  - name: fastapi-learning-db
+    plan: free
