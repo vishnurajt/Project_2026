@@ -1,0 +1,8 @@
+env/
+__pycache__/
+*.pyc
+*.db
+.env
+test_main.py
+request_logs.txt
+.git
