@@ -38,7 +38,7 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
     print(f"response status: {response.status_code}")
     
-    # Log to file in background
+   
     response.background = BackgroundTask(
         log_request_to_file,
         request.method,
