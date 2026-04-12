@@ -11,7 +11,7 @@ class UserDB(Base):
     password = Column(String)
     is_active = Column(Boolean, default=True)
     bio = Column(String, nullable=True)
-
+    phone_number = Column(String, nullable=True)
 class ItemDB(Base):
     __tablename__ = "items"
 
